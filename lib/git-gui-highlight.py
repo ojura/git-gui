@@ -13,10 +13,10 @@
 # <col>/<len> are character offsets within the code line (marker column already
 # stripped by git-gui). <class> is one of: kw typ str com num fn pre.
 #
-# Each line is lexed independently for now. Multi-line constructs (notably C
-# block comments and multi-line strings) are therefore highlighted only on
-# their first line; full-image lexing is a planned refinement and needs no
-# protocol change.
+# The lines of one request are lexed together as a single document, so
+# multi-line constructs (block comments, multi-line strings) keep state across
+# lines. git-gui sends a diff's post-image and pre-image as separate requests,
+# each coherent source in file order, so the state is meaningful.
 import hashlib
 import sys
 from collections import OrderedDict
@@ -50,34 +50,38 @@ def classify(ttype):
     return None
 
 
-def spans_for_line(idx, code, lexer):
-    """Yield (idx, col, length, class) spans for one line of code. Columns track
-    the original string; Pygments appends a newline to its input, so any newline
-    inside a token value is dropped (the code line itself has none)."""
+def spans_for_doc(lines, lexer):
+    """Lex the lines as one document so multi-line constructs keep state across
+    lines, yielding (lineidx, col, length, class) spans. A token value can
+    straddle newlines (e.g. a block comment), so it is split on '\\n' and the
+    line index / column advance accordingly. Columns track each line's original
+    characters; the newline itself contributes no column."""
+    text = '\n'.join(lines)
+    nlines = len(lines)
+    idx = 0
     col = 0
-    for ttype, value in lex(code, lexer):
-        value = value.replace('\n', '')
-        if not value:
-            continue
+    for ttype, value in lex(text, lexer):
         cls = classify(ttype)
-        if cls is not None:
-            yield (idx, col, len(value), cls)
-        col += len(value)
+        parts = value.split('\n')
+        for k, part in enumerate(parts):
+            if k > 0:
+                idx += 1
+                col = 0
+            if part and cls is not None and idx < nlines:
+                yield (idx, col, len(part), cls)
+            col += len(part)
 
 
 def compute_spans(path, lines):
-    """All spans for a batch. Unknown file type -> no spans."""
+    """All spans for a batch (one coherent image). Unknown file type -> none."""
     try:
         lexer = get_lexer_for_filename(path)
     except ClassNotFound:
         return []
-    spans = []
-    for idx, code in enumerate(lines):
-        try:
-            spans.extend(spans_for_line(idx, code, lexer))
-        except Exception:
-            pass  # a lexer hiccup on one line must not drop the batch
-    return spans
+    try:
+        return list(spans_for_doc(lines, lexer))
+    except Exception:
+        return []  # never let a lexer hiccup drop the batch
 
 
 # Warm LRU cache keyed by the request content (path + lines fully determine the

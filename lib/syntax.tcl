@@ -150,15 +150,18 @@ proc syntax_on_readable {} {
 # Paint a completed response, unless the diff it was computed for has since been
 # replaced (generation mismatch, bumped in clear_diff) or is otherwise unknown.
 proc syntax_apply_spans {rid spans} {
-	global ui_diff syntax_pending syntax_gen
+	global ui_diff syntax_pending syntax_gen syntax_mode
 	if {![info exists syntax_pending($rid)]} return
-	lassign $syntax_pending($rid) gen codelines
+	lassign $syntax_pending($rid) gen linemap
 	unset syntax_pending($rid)
 	if {$gen != $syntax_gen} return
 	foreach span $spans {
 		lassign $span idx col len cls
-		set l [lindex $codelines $idx]
-		if {$l eq {}} continue
+		set entry [lindex $linemap $idx]
+		if {$entry eq {}} continue
+		lassign $entry l marker
+		# Context mode colours only unchanged lines.
+		if {$syntax_mode eq {context} && $marker ne { }} continue
 		set a "$l.0 + [expr {1 + $col}] chars"
 		set b "$l.0 + [expr {1 + $col + $len}] chars"
 		catch {$ui_diff tag add syn$cls $a $b}
@@ -174,9 +177,13 @@ proc syntax_highlight_diff {} {
 
 	if {!$syntax_enabled || $syntax_fd eq {} || $current_diff_path eq {}} return
 
+	# Reconstruct the post-image (context + added) and pre-image (context +
+	# removed) in file order, so the helper can lex each as one document and
+	# keep state across lines (block comments, multi-line strings). Each image
+	# maps back to its diff-buffer lines via a parallel {line marker} list.
 	set last [lindex [split [$ui_diff index end] .] 0]
-	set codelines {}
-	set texts {}
+	set new_map {}; set new_txt {}
+	set old_map {}; set old_txt {}
 	for {set l 1} {$l < $last} {incr l} {
 		set tags [$ui_diff tag names $l.0]
 		if {[lsearch -exact $tags d_@] >= 0} continue
@@ -189,18 +196,32 @@ proc syntax_highlight_diff {} {
 		} else {
 			continue
 		}
-		# In context mode the classic solid colour stays on changed lines.
-		if {$syntax_mode eq {context} && $marker ne { }} continue
-		lappend codelines $l
-		lappend texts [$ui_diff get $l.1 "$l.0 lineend"]
+		set code [$ui_diff get $l.1 "$l.0 lineend"]
+		if {$marker ne {-}} {
+			lappend new_map [list $l $marker]
+			lappend new_txt $code
+		}
+		if {$marker ne {+}} {
+			lappend old_map [list $l $marker]
+			lappend old_txt $code
+		}
 	}
-	if {$texts eq {}} return
 
-	# Fire and forget: record the line mapping under this request id (with the
-	# current buffer generation) and send. syntax_apply_spans paints the result
-	# when it arrives, after checking the diff has not been replaced meanwhile.
-	# Code content starts one char past line start (after the marker column).
+	# The post-image carries every context line, so it suffices for context
+	# mode; tint mode also needs the pre-image to colour removed lines.
+	syntax_send_image $new_txt $new_map
+	if {$syntax_mode eq {tint}} {
+		syntax_send_image $old_txt $old_map
+	}
+}
+
+# Queue one image (its line texts and parallel {line marker} map) for
+# highlighting. Records the mapping under a fresh request id at the current
+# buffer generation; syntax_apply_spans paints the response when it arrives.
+proc syntax_send_image {texts linemap} {
+	global current_diff_path syntax_reqid syntax_pending syntax_gen
+	if {$texts eq {}} return
 	incr syntax_reqid
-	set syntax_pending($syntax_reqid) [list $syntax_gen $codelines]
+	set syntax_pending($syntax_reqid) [list $syntax_gen $linemap]
 	syntax_send $syntax_reqid $current_diff_path $texts
 }
