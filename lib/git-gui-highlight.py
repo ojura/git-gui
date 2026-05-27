@@ -17,7 +17,9 @@
 # block comments and multi-line strings) are therefore highlighted only on
 # their first line; full-image lexing is a planned refinement and needs no
 # protocol change.
+import hashlib
 import sys
+from collections import OrderedDict
 
 from pygments import lex
 from pygments.lexers import get_lexer_for_filename
@@ -63,6 +65,42 @@ def spans_for_line(idx, code, lexer):
         col += len(value)
 
 
+def compute_spans(path, lines):
+    """All spans for a batch. Unknown file type -> no spans."""
+    try:
+        lexer = get_lexer_for_filename(path)
+    except ClassNotFound:
+        return []
+    spans = []
+    for idx, code in enumerate(lines):
+        try:
+            spans.extend(spans_for_line(idx, code, lexer))
+        except Exception:
+            pass  # a lexer hiccup on one line must not drop the batch
+    return spans
+
+
+# Warm LRU cache keyed by the request content (path + lines fully determine the
+# spans). Lets rescans, re-selected files, and prefetched diffs return without
+# re-lexing. 256 entries keeps memory trivial while covering a session's worth
+# of revisited diffs.
+_CACHE = OrderedDict()
+_CACHE_MAX = 256
+
+
+def cached_spans(path, lines):
+    key = hashlib.sha1('\x00'.join([path] + lines).encode('utf-8', 'replace')).digest()
+    spans = _CACHE.get(key)
+    if spans is None:
+        spans = compute_spans(path, lines)
+        _CACHE[key] = spans
+        if len(_CACHE) > _CACHE_MAX:
+            _CACHE.popitem(last=False)
+    else:
+        _CACHE.move_to_end(key)
+    return spans
+
+
 def main():
     # Force UTF-8 regardless of the parent's locale.
     sys.stdin.reconfigure(encoding='utf-8', errors='replace')
@@ -93,17 +131,7 @@ def main():
                 l = l[:-1]
             lines.append(l)
 
-        spans = []
-        try:
-            lexer = get_lexer_for_filename(path)
-        except ClassNotFound:
-            lexer = None
-        if lexer is not None:
-            for idx, code in enumerate(lines):
-                try:
-                    spans.extend(spans_for_line(idx, code, lexer))
-                except Exception:
-                    pass  # a lexer hiccup on one line must not drop the batch
+        spans = cached_spans(path, lines)
 
         out.write('RES %s %d\n' % (reqid, len(spans)))
         for (idx, col, length, cls) in spans:
