@@ -21,6 +21,7 @@ ALL_LIBFILES = $(wildcard lib/*.tcl)
 PRELOAD_FILES = lib/class.tcl
 NONTCL_LIBFILES = \
 	lib/git-gui.ico \
+	lib/git-gui-highlight.py \
 	$(wildcard lib/win32_*.js) \
 #end NONTCL_LIBFILES
 
