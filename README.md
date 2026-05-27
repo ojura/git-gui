@@ -46,7 +46,19 @@ for staging and unstaging:
 
 ## Set it up
 
-On by default. Needs Python 3 with Pygments.
+It is a git-gui, built the usual way. Beyond a normal git-gui you need git 2.36
+or newer (a git-gui baseline) and, for the highlighting, Python 3 with Pygments:
+
+```sh
+sudo apt install tcl tk gettext python3-pygments   # build + runtime deps
+make                                               # build (generates the lib index and scripts)
+sudo make install                                  # install over your system git-gui
+```
+
+To try it without installing, run `./git-gui.sh` from the clone after `make`.
+
+Highlighting is on by default. Tune it with `git config`, or live from the diff
+context menu:
 
 | Setting | Values | What it does |
 | --- | --- | --- |
