@@ -3,7 +3,7 @@ name: Build .deb packages
 on:
   push:
     branches: ["**"]
-    tags: ["v*"]
+    tags: ["gitgui-*", "v*"]
   workflow_dispatch:
 
 jobs:

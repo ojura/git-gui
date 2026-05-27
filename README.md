@@ -46,13 +46,27 @@ for staging and unstaging:
 
 ## Set it up
 
-It is a git-gui, built the usual way. Beyond a normal git-gui you need git 2.36
-or newer (a git-gui baseline) and, for the highlighting, Python 3 with Pygments:
+### Install a .deb (Ubuntu)
+
+Grab the package for your release from the
+[latest release](https://github.com/ojura/git-gui/releases/latest) and install it:
 
 ```sh
-sudo apt install tcl tk gettext python3-pygments   # build + runtime deps
-make                                               # build (generates the lib index and scripts)
-sudo make install                                  # install over your system git-gui
+sudo apt install ./git-gui-syntax_*_all.deb   # pulls in git, tcl, tk, python3-pygments
+```
+
+Prebuilt for Ubuntu 20.04, 22.04, 24.04, and 26.04. It replaces the stock
+`git-gui`, so `git gui` just picks it up.
+
+### Or build from source
+
+You need git 2.20 or newer, Tcl, Tk, and, for the highlighting, Python 3 with
+Pygments:
+
+```sh
+sudo apt install tcl tk gettext python3-pygments
+make                 # generates the lib index and scripts
+sudo make install    # install over your system git-gui
 ```
 
 To try it without installing, run `./git-gui.sh` from the clone after `make`.
