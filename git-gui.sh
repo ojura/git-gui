@@ -632,7 +632,19 @@ proc git_write {cmd} {
 }
 
 proc githook_read {hook_name args} {
-	git_read [concat [list hook run --ignore-missing $hook_name --] $args] [list 2>@1]
+	global _git_version
+	# git >= 2.36 runs the hook itself (honouring core.hooksPath, config, etc.).
+	if {[package vcompare $_git_version 2.36] >= 0} {
+		return [git_read [concat [list hook run --ignore-missing $hook_name --] $args] [list 2>@1]]
+	}
+	# Older git has no `git hook run`; invoke the hook script directly, the way
+	# git-gui did before that dependency. Mirror --ignore-missing by skipping
+	# silently when there is no executable hook of that name.
+	set hook [gitdir hooks $hook_name]
+	if {![file executable $hook]} {
+		return {}
+	}
+	return [safe_open_command [concat [list $hook] $args] [list 2>@1]]
 }
 
 proc kill_file_process {fd} {
@@ -891,7 +903,7 @@ if {$_git eq {}} {
 ##
 ## version check
 
-set MIN_GIT_VERSION 2.36
+set MIN_GIT_VERSION 2.20
 
 if {[catch {set _git_version [git --version]} err]} {
 	catch {wm withdraw .}
