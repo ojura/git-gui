@@ -55,11 +55,25 @@ proc syntax_setup {} {
 proc syntax_apply_mode {} {
 	global ui_diff syntax_enabled syntax_mode
 	if {$syntax_enabled && $syntax_mode eq {tint}} {
-		$ui_diff tag configure d_+ -foreground {} -background {#e6ffe6}
-		$ui_diff tag configure d_- -foreground {} -background {#ffe6e6}
+		# Background indicates add/remove; syntax owns the foreground. Suppress
+		# every diff-content tag's own foreground so it does not wash over the
+		# letters (this includes the combined/3-way variants d_s+, d_+s, d_++,
+		# ...). The 3-way intra-line tags keep their side-distinguishing
+		# background; the plain ones get a light add/remove tint.
+		$ui_diff tag configure d_+  -foreground {} -background {#e6ffe6}
+		$ui_diff tag configure d_-  -foreground {} -background {#ffe6e6}
+		$ui_diff tag configure d_++ -foreground {} -background {#e6ffe6}
+		$ui_diff tag configure d_-- -foreground {} -background {#ffe6e6}
+		foreach t {d_s+ d_+s d_s- d_-s} {$ui_diff tag configure $t -foreground {}}
 	} else {
-		$ui_diff tag configure d_+ -foreground {#00a000} -background {}
-		$ui_diff tag configure d_- -foreground red -background {}
+		$ui_diff tag configure d_+  -foreground {#00a000} -background {}
+		$ui_diff tag configure d_-  -foreground red -background {}
+		$ui_diff tag configure d_++ -foreground {#00a000} -background {}
+		$ui_diff tag configure d_-- -foreground red -background {}
+		$ui_diff tag configure d_s+ -foreground {#00a000}
+		$ui_diff tag configure d_+s -foreground {#00a000}
+		$ui_diff tag configure d_s- -foreground red
+		$ui_diff tag configure d_-s -foreground red
 	}
 }
 
