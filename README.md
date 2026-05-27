@@ -1,3 +1,76 @@
+# Diff syntax highlighting for git-gui
+
+Your code, in colour, right in the diff.
+
+![C++ diff with syntax highlighting](demo/images/2_cpp_ubuntu.png)
+
+git-gui shows you what changed. Now it shows you in the colours you read code in
+every day: keywords, types, strings, comments, numbers. Staging works exactly as
+it always has, down to the byte.
+
+## Every language
+
+Highlighting comes from [Pygments](https://pygments.org/), kept warm in the
+background so it never gets in your way. If Pygments knows the language, the diff
+is coloured. C++, Python, and hundreds more, chosen automatically by file name.
+
+![Python diff highlighted](demo/images/3_python.png)
+
+## Conflicts, in colour too
+
+Merge conflicts are the diffs you most need to read clearly. They get the full
+treatment: each side on its own background, the conflict markers left untouched.
+
+![Merge conflict, combined diff highlighted](demo/images/4_conflict.png)
+
+## Long lines, finally readable
+
+A line that used to run off the right edge can soft-wrap instead, on a toggle.
+
+![Long line soft-wrapped](demo/images/7_wrap.png)
+
+## Your way
+
+Two colour models. Tint gives changed lines a soft background and lets syntax own
+the letters. Context keeps the classic green and red on changed lines and colours
+the rest. Switch either one, and wrap, live from the diff menu.
+
+## Staging never changes
+
+This is the part that matters. git-gui rebuilds patches from the diff text, and
+the highlighting only ever lays colour over that text. Stage a single line or a
+whole hunk and the exact same bytes are staged as before. Verified byte for byte,
+for staging and unstaging:
+
+![Stage and unstage stay byte-exact](demo/images/stage-test.png)
+
+## Set it up
+
+On by default. Needs Python 3 with Pygments.
+
+| Setting | Values | What it does |
+| --- | --- | --- |
+| `gui.diffsyntax` | `true` · `false` | highlighting on or off |
+| `gui.diffsyntaxmode` | `tint` · `context` | the colour model |
+| `gui.diffwrap` | `none` · `char` | soft-wrap long lines |
+
+## See every case
+
+Everything above, in one frame:
+
+![All scenarios](demo/images/montage.png)
+
+The [`demo/`](demo/) directory produced every image on this page by driving a real
+git-gui in a nested display:
+
+```sh
+demo/xephyr-env.sh     # start the test display, once
+demo/make-demo.sh      # rebuild the montage
+demo/stage-test.sh     # run the stage / unstage byte-exactness suite
+```
+
+---
+
 # Git GUI - A graphical user interface for Git
 
 Git GUI allows you to use the [Git source control management
