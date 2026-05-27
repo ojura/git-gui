@@ -32,13 +32,13 @@ proc syntax_setup {} {
 	set syntax_tint [expr {$syntax_mode eq {tint}}]
 
 	# Dark foregrounds, legible on white and on the light +/- tints.
-	$ui_diff tag configure synkw  -foreground {#0000ff}
-	$ui_diff tag configure syntyp -foreground {#267f99}
+	$ui_diff tag configure synkw  -foreground {#0033b3}
+	$ui_diff tag configure syntyp -foreground {#008080}
 	$ui_diff tag configure synstr -foreground {#a31515}
-	$ui_diff tag configure syncom -foreground {#008000}
-	$ui_diff tag configure synnum -foreground {#b5650e}
+	$ui_diff tag configure syncom -foreground {#3f7e3f}
+	$ui_diff tag configure synnum -foreground {#9b4f0f}
 	$ui_diff tag configure synfn  -foreground {#795e26}
-	$ui_diff tag configure synpre -foreground {#af00db}
+	$ui_diff tag configure synpre -foreground {#a626a4}
 
 	# Syntax foreground must win over d_+/d_- on changed lines, but the
 	# selection highlight must still win over syntax.
