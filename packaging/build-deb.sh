@@ -19,6 +19,11 @@ make install DESTDIR="$PKGROOT" gitexecdir=/usr/lib/git-core
 # Version: git-gui's own version, '-' -> '.', plus the Ubuntu codename so the
 # per-release builds sort and name distinctly.
 VER="$(sed -n 's/^GITGUI_VERSION *= *//p' GIT-VERSION-FILE 2>/dev/null || true)"
+# On a tagged CI build, take the version straight from the gitgui-* tag - robust
+# even if git describe cannot see the tag in the CI checkout.
+case "${GITHUB_REF_NAME:-}" in
+  gitgui-[0-9]*) VER="${GITHUB_REF_NAME#gitgui-}" ;;
+esac
 [ -n "$VER" ] || VER="0.0.$(date +%Y%m%d)"
 VER="${VER%-dirty}"; VER="${VER//-/.}"
 CODENAME="$( . /etc/os-release 2>/dev/null && echo "${VERSION_CODENAME:-unknown}" )"
