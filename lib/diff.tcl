@@ -20,6 +20,9 @@ proc clear_diff {} {
 	$ui_diff delete 0.0 end
 	$ui_diff conf -state disabled
 
+	# Invalidate any in-flight syntax-highlight response for the old buffer.
+	if {[info exists ::syntax_gen]} {incr ::syntax_gen}
+
 	set current_diff_path {}
 	set current_diff_header {}
 
@@ -536,6 +539,8 @@ proc read_diff {fd conflict_size cont_info} {
 		if {[$ui_diff index end] eq {2.0}} {
 			handle_empty_diff
 		}
+
+		syntax_highlight_diff
 
 		set callback [lindex $cont_info 1]
 		if {$callback ne {}} {

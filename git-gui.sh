@@ -851,6 +851,9 @@ set default_config(gui.maxrecentrepo) 10
 set default_config(gui.copyblamethreshold) 40
 set default_config(gui.blamehistoryctx) 7
 set default_config(gui.diffcontext) 5
+set default_config(gui.diffwrap) none
+set default_config(gui.diffsyntax) true
+set default_config(gui.diffsyntaxmode) tint
 set default_config(gui.diffopts) {}
 set default_config(gui.commitmsgwidth) 75
 set default_config(gui.newbranchtemplate) {}
@@ -3392,9 +3395,12 @@ bind .vpane.lower.diff.header.path <Button-1> {do_file_open $current_diff_path}
 #
 textframe .vpane.lower.diff.body
 set ui_diff .vpane.lower.diff.body.t
+# Live wrap mode for the diff body, toggled from the diff context menu.
+# Tk -wrap values: "none" (default, horizontal scroll) or "char" (soft-wrap).
+set ui_diff_wrap $repo_config(gui.diffwrap)
 ttext $ui_diff \
 	-borderwidth 0 \
-	-width 80 -height 5 -wrap none \
+	-width 80 -height 5 -wrap $ui_diff_wrap \
 	-font font_diff \
 	-takefocus 1 -highlightthickness 1 \
 	-xscrollcommand {.vpane.lower.diff.body.sbx set} \
@@ -3459,6 +3465,8 @@ $ui_diff tag conf d> \
 
 $ui_diff tag raise sel
 
+syntax_setup
+
 # -- Diff Body Context Menu
 #
 
@@ -3491,6 +3499,24 @@ proc create_common_diff_popup {ctxm} {
 	$ctxm add command \
 		-label [mc "Increase Font Size"] \
 		-command {incr_font_size font_diff 1}
+	lappend diff_actions [list $ctxm entryconf [$ctxm index last] -state]
+	$ctxm add checkbutton \
+		-label [mc "Wrap Long Lines"] \
+		-variable ui_diff_wrap \
+		-onvalue char -offvalue none \
+		-command {$ui_diff configure -wrap $ui_diff_wrap}
+	lappend diff_actions [list $ctxm entryconf [$ctxm index last] -state]
+	$ctxm add checkbutton \
+		-label [mc "Syntax Highlighting"] \
+		-variable syntax_enabled \
+		-onvalue 1 -offvalue 0 \
+		-command syntax_toggle
+	lappend diff_actions [list $ctxm entryconf [$ctxm index last] -state]
+	$ctxm add checkbutton \
+		-label [mc "Tint Changed Lines"] \
+		-variable syntax_tint \
+		-onvalue 1 -offvalue 0 \
+		-command syntax_toggle
 	lappend diff_actions [list $ctxm entryconf [$ctxm index last] -state]
 	$ctxm add separator
 	set emenu $ctxm.enc
