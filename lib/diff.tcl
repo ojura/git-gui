@@ -299,7 +299,13 @@ proc start_show_diff {cont_info {add_opts {}}} {
 	}
 
 	lappend cmd -p
-	lappend cmd --color
+	# Syntax highlighting colours the letters itself, and d_+/d_- tints the
+	# add/remove background, so git's own --color foreground would just wash
+	# over them (everything reads green/red). Ask git to colour only when
+	# highlighting is off.
+	if {![info exists ::syntax_enabled] || !$::syntax_enabled} {
+		lappend cmd --color
+	}
 	set cmd [concat $cmd $repo_config(gui.diffopts)]
 	if {$repo_config(gui.diffcontext) >= 1} {
 		lappend cmd "-U$repo_config(gui.diffcontext)"
