@@ -75,7 +75,10 @@ def spans_for_doc(lines, lexer):
 def compute_spans(path, lines):
     """All spans for a batch (one coherent image). Unknown file type -> none."""
     try:
-        lexer = get_lexer_for_filename(path)
+        # stripnl=False is essential: Pygments otherwise strips leading and
+        # trailing newlines, which would drop a leading blank line and shift
+        # every span up by a line relative to our line indices.
+        lexer = get_lexer_for_filename(path, stripnl=False)
     except ClassNotFound:
         return []
     try:

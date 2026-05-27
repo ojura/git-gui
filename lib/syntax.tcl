@@ -152,18 +152,18 @@ proc syntax_on_readable {} {
 proc syntax_apply_spans {rid spans} {
 	global ui_diff syntax_pending syntax_gen syntax_mode
 	if {![info exists syntax_pending($rid)]} return
-	lassign $syntax_pending($rid) gen linemap
+	lassign $syntax_pending($rid) gen linemap off
 	unset syntax_pending($rid)
 	if {$gen != $syntax_gen} return
 	foreach span $spans {
 		lassign $span idx col len cls
 		set entry [lindex $linemap $idx]
 		if {$entry eq {}} continue
-		lassign $entry l marker
+		lassign $entry l cat
 		# Context mode colours only unchanged lines.
-		if {$syntax_mode eq {context} && $marker ne { }} continue
-		set a "$l.0 + [expr {1 + $col}] chars"
-		set b "$l.0 + [expr {1 + $col + $len}] chars"
+		if {$syntax_mode eq {context} && $cat ne {context}} continue
+		set a "$l.0 + [expr {$off + $col}] chars"
+		set b "$l.0 + [expr {$off + $col + $len}] chars"
 		catch {$ui_diff tag add syn$cls $a $b}
 	}
 }
@@ -173,55 +173,75 @@ proc syntax_apply_spans {rid spans} {
 # conflict, and submodule diffs are left untouched for now.
 proc syntax_highlight_diff {} {
 	global ui_diff syntax_fd syntax_enabled syntax_mode current_diff_path
-	global syntax_reqid syntax_pending syntax_gen
+	global syntax_reqid syntax_pending syntax_gen is_3way_diff
 
 	if {!$syntax_enabled || $syntax_fd eq {} || $current_diff_path eq {}} return
 
 	# Reconstruct the post-image (context + added) and pre-image (context +
 	# removed) in file order, so the helper can lex each as one document and
 	# keep state across lines (block comments, multi-line strings). Each image
-	# maps back to its diff-buffer lines via a parallel {line marker} list.
+	# maps back to its diff-buffer lines via a parallel {line category} list.
+	# Combined (3-way merge / conflict) diffs carry a 2-column marker; plain
+	# 2-way diffs one. The added/removed classification spans both forms.
+	set off [expr {$is_3way_diff ? 2 : 1}]
 	set last [lindex [split [$ui_diff index end] .] 0]
 	set new_map {}; set new_txt {}
 	set old_map {}; set old_txt {}
 	for {set l 1} {$l < $last} {incr l} {
-		set tags [$ui_diff tag names $l.0]
-		if {[lsearch -exact $tags d_@] >= 0} continue
-		if {[lsearch -exact $tags d_+] >= 0} {
-			set marker +
-		} elseif {[lsearch -exact $tags d_-] >= 0} {
-			set marker -
-		} elseif {[$ui_diff get $l.0] eq { }} {
-			set marker { }
-		} else {
-			continue
+		set cat [syntax_line_category [$ui_diff tag names $l.0]]
+		if {$cat eq {skip}} continue
+		if {$cat eq {}} {
+			# Untagged: a code context line has only spaces in the marker
+			# columns; anything else (diff-header leftovers) is not code.
+			if {[string trim [$ui_diff get $l.0 "$l.0 + $off chars"]] ne {}} continue
+			set cat context
 		}
-		set code [$ui_diff get $l.1 "$l.0 lineend"]
-		if {$marker ne {-}} {
-			lappend new_map [list $l $marker]
+		set code [$ui_diff get "$l.0 + $off chars" "$l.0 lineend"]
+		if {$cat ne {removed}} {
+			lappend new_map [list $l $cat]
 			lappend new_txt $code
 		}
-		if {$marker ne {+}} {
-			lappend old_map [list $l $marker]
+		if {$cat ne {added}} {
+			lappend old_map [list $l $cat]
 			lappend old_txt $code
 		}
 	}
 
 	# The post-image carries every context line, so it suffices for context
 	# mode; tint mode also needs the pre-image to colour removed lines.
-	syntax_send_image $new_txt $new_map
+	syntax_send_image $new_txt $new_map $off
 	if {$syntax_mode eq {tint}} {
-		syntax_send_image $old_txt $old_map
+		syntax_send_image $old_txt $old_map $off
 	}
 }
 
-# Queue one image (its line texts and parallel {line marker} map) for
-# highlighting. Records the mapping under a fresh request id at the current
-# buffer generation; syntax_apply_spans paints the response when it arrives.
-proc syntax_send_image {texts linemap} {
+# Classify a diff line from its tags: added | removed | context | skip, or {}
+# when untagged (the caller decides context-vs-not from the marker columns).
+# Handles plain 2-way tags (d_+, d_-) and combined 3-way tags (d_s+/d_+s/d_++
+# and d_s-/d_-s/d_--). Hunk headers, conflict markers, and submodule/info lines
+# are skipped (not source code).
+proc syntax_line_category {tags} {
+	if {[lsearch -exact $tags d_@] >= 0} {return skip}
+	foreach t {d_+ d_s+ d_+s d_++} {
+		if {[lsearch -exact $tags $t] >= 0} {return added}
+	}
+	foreach t {d_- d_s- d_-s d_--} {
+		if {[lsearch -exact $tags $t] >= 0} {return removed}
+	}
+	foreach t {d< d| d= d> d_info d_rescan} {
+		if {[lsearch -exact $tags $t] >= 0} {return skip}
+	}
+	return {}
+}
+
+# Queue one image (its line texts, the parallel {line category} map, and the
+# marker-column width) for highlighting. Records the mapping under a fresh
+# request id at the current buffer generation; syntax_apply_spans paints the
+# response when it arrives.
+proc syntax_send_image {texts linemap off} {
 	global current_diff_path syntax_reqid syntax_pending syntax_gen
 	if {$texts eq {}} return
 	incr syntax_reqid
-	set syntax_pending($syntax_reqid) [list $syntax_gen $linemap]
+	set syntax_pending($syntax_reqid) [list $syntax_gen $linemap $off]
 	syntax_send $syntax_reqid $current_diff_path $texts
 }
