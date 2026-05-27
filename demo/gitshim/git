@@ -1,0 +1,15 @@
+#!/bin/bash
+# Test-harness shim: lets this (trunk) git-gui run against an older system git.
+# Trunk git-gui requires git >= 2.36 (for `git hook run`), so on an older git
+# the startup version check fails and `git hook run` is unknown. This shim, when
+# placed ahead on PATH, reports a satisfying version and treats `git hook run`
+# as a no-op (faithful to a repo with no hooks). Every other call passes through
+# to the real git. For testing the diff viewer only; do not ship.
+if [ "$1" = "--version" ]; then
+    echo "git version 2.36.0"
+    exit 0
+fi
+if [ "$1" = "hook" ]; then
+    exit 0
+fi
+exec /usr/bin/git "$@"
