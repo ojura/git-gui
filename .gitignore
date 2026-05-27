@@ -7,3 +7,7 @@ git-gui
 git-gui--askpass
 git-gui--askyesno
 lib/tclIndex
+
+# Python bytecode from the highlight helper
+lib/__pycache__/
+*.pyc

@@ -547,6 +547,7 @@ proc read_diff {fd conflict_size cont_info} {
 		}
 
 		syntax_highlight_diff
+		gg_ready_signal
 
 		set callback [lindex $cont_info 1]
 		if {$callback ne {}} {

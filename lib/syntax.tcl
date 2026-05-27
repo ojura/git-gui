@@ -19,11 +19,12 @@
 proc syntax_setup {} {
 	global ui_diff repo_config
 	global syntax_fd syntax_reqid syntax_enabled syntax_mode
-	global syntax_gen syntax_rx_state syntax_tint
+	global syntax_gen syntax_rx_state syntax_tint gg_ready_n
 
 	set syntax_fd {}
 	set syntax_reqid 0
 	set syntax_gen 0
+	set gg_ready_n 0
 	set syntax_rx_state header
 	array unset ::syntax_pending
 	set syntax_enabled [expr {$repo_config(gui.diffsyntax) eq {true}}]
@@ -180,6 +181,21 @@ proc syntax_apply_spans {rid spans} {
 		set b "$l.0 + [expr {$off + $col + $len}] chars"
 		catch {$ui_diff tag add syn$cls $a $b}
 	}
+	gg_ready_signal
+}
+
+# Test hook (no-op unless GG_READY_FILE is set): once a diff has fully loaded
+# and every pending highlight response has been applied, force a redraw and
+# write an incrementing counter to the file. A capture harness can then block
+# on the counter changing and screenshot exactly when the draw is finished,
+# instead of sleeping a fixed interval.
+proc gg_ready_signal {} {
+	global syntax_pending gg_ready_n
+	if {![info exists ::env(GG_READY_FILE)]} return
+	if {[info exists syntax_pending] && [array size syntax_pending] != 0} return
+	update idletasks
+	incr gg_ready_n
+	catch {set f [open $::env(GG_READY_FILE) w]; puts $f $gg_ready_n; close $f}
 }
 
 # Post-load pass over the freshly rendered diff: collect code lines, ask the
