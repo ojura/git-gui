@@ -24,7 +24,7 @@ jobs:
           apt-get install -y --no-install-recommends \
             git make tcl tk gettext ca-certificates
 
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           fetch-depth: 0          # full history ...
           fetch-tags: true        # ... and tags, so git describe sees gitgui-*
@@ -42,25 +42,51 @@ jobs:
           dpkg-deb -I "$deb"
           dpkg-deb -c "$deb" | grep -E 'git-gui$|git-gui-highlight\.py$'
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: git-gui-syntax-ubuntu-${{ matrix.ver }}
           path: packaging/dist/*.deb
           if-no-files-found: error
 
+  windows-zip:
+    name: windows zip
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install build dependencies
+        run: |
+          export DEBIAN_FRONTEND=noninteractive
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends make tcl tk gettext zip
+
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+
+      - name: Build the Windows zip
+        run: bash packaging/build-windows-zip.sh
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: git-gui-pyggy-windows
+          path: packaging/dist/*.zip
+          if-no-files-found: error
+
   release:
-    name: Attach .debs to the release
-    needs: build
+    name: Attach artifacts to the release
+    needs: [build, windows-zip]
     if: startsWith(github.ref, 'refs/tags/')
     runs-on: ubuntu-latest
     permissions:
       contents: write
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
-          path: debs
+          path: dist
           merge-multiple: true
-      - uses: softprops/action-gh-release@v2
+      - uses: softprops/action-gh-release@v3
         with:
-          files: debs/*.deb
+          files: |
+            dist/*.deb
+            dist/*.zip
           generate_release_notes: true

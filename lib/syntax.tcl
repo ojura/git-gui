@@ -99,13 +99,28 @@ proc syntax_toggle {} {
 	syntax_highlight_diff
 }
 
-# (Re)spawn the helper. Any failure (no python3, no Pygments) silently leaves
+# Locate a Python 3 interpreter: python3 / python on Linux and macOS, python or
+# the "py" launcher on Windows (Git for Windows ships no python3). Returns the
+# command as a list, or {} if none is found.
+proc syntax_python {} {
+	foreach cand {python3 python} {
+		set exe [auto_execok $cand]
+		if {$exe ne {}} {return $exe}
+	}
+	set exe [auto_execok py]
+	if {$exe ne {}} {return [concat $exe -3]}
+	return {}
+}
+
+# (Re)spawn the helper. Any failure (no Python, no Pygments) silently leaves
 # syntax_fd empty, which disables highlighting without disturbing the diff.
 proc syntax_start {} {
 	global syntax_fd oguilib
 	if {$syntax_fd ne {}} return
+	set py [syntax_python]
+	if {$py eq {}} return
 	set helper [file join $oguilib git-gui-highlight.py]
-	if {[catch {set fd [open "|[list python3 $helper]" r+]}]} {
+	if {[catch {set fd [open "|[concat $py [list $helper]]" r+]}]} {
 		set syntax_fd {}
 		return
 	}

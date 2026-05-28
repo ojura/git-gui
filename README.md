@@ -58,6 +58,27 @@ sudo apt install ./git-gui-syntax_*_all.deb   # pulls in git, tcl, tk, python3-p
 Prebuilt for Ubuntu 20.04, 22.04, 24.04, and 26.04. It replaces the stock
 `git-gui`, so `git gui` just picks it up.
 
+### Windows (Git for Windows)
+
+Paste one line into PowerShell. Nothing to download first:
+
+```powershell
+irm https://raw.githubusercontent.com/ojura/git-gui/diff-syntax-highlight/packaging/windows/web-install.ps1 | iex
+```
+
+It slots git-gui into your Git for Windows, then sets up Python 3 and Pygments
+behind it, the engine the colour runs on. Open `git gui` and it is there. No
+Python? git-gui still runs, just in monochrome.
+
+Prefer to see what you are running? Grab the Windows zip
+(`git-gui-pyggy-windows-*.zip`) from the
+[latest release](https://github.com/ojura/git-gui/releases/latest), unzip, and
+run `install.ps1` from it:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File install.ps1
+```
+
 ### Or build from source
 
 You need git 2.20 or newer, Tcl, Tk, and, for the highlighting, Python 3 with
